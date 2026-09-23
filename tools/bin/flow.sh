@@ -298,6 +298,12 @@ cmd_merge() {
     [ "$review" != "CHANGES_REQUESTED" ] || die "PR #$number は変更要求 (CHANGES_REQUESTED) が付いています。"
     [ "$review" != "REVIEW_REQUIRED" ] || warn "PR #$number は必須レビューが未完了です（ブランチ保護により GitHub 側で拒否される可能性あり）。"
 
+    # 承認ポリシー: 作成者本人を含め誰か 1 人の承認（Approve または LGTM コメントレビュー）が必要
+    local approvals
+    approvals=$(approval_count "$number") || die "PR #${number} のレビュー情報を取得できませんでした。"
+    [ "${approvals:-0}" -ge 1 ] \
+        || die "PR #${number} に承認がありません。'flow.sh approve $number' で承認してください（作成者本人でも可）。"
+
     # CI が失敗していればマージしない（実行中・未設定は警告のみ）
     # 出力は変数に受けてから判定する（gh ... | grep -q だと pipefail 下で gh の非ゼロ終了が
     # パイプ全体の結果になり「CI 未設定」を「CI 失敗」と誤判定する。テストで検出、2026-09-23）
@@ -336,8 +342,10 @@ cmd_merge() {
     echo "  作業ブランチの片付け: worktree なら 'git worktree remove <dir>'、ブランチは 'git branch -D <branch>'"
 }
 
-# PR を承認する（レビュアー用）。コメントは既定で "LGTM"（チーム決定、2026-09-23）。
-# GitHub の仕様上、PR 作成者は自分の PR を承認できない。
+# PR を承認する。コメントは既定で "LGTM"（チーム決定、2026-09-23）。
+# 承認ポリシー: 作成者本人を含め、誰か 1 人が承認すればマージしてよい（デモ環境向けの緩和、2026-09-23）。
+# GitHub の仕様上、作成者は自分の PR を Approve できないため、その場合は同じ本文の
+# コメントレビューを残す。merge はこれも「承認」として数える（has_approval 参照）。
 cmd_approve() {
     local number="" message="LGTM"
     while [ $# -gt 0 ]; do
@@ -358,13 +366,26 @@ cmd_approve() {
 
     info "PR #${number} を承認します（コメント: ${message}）"
     local out
-    out=$(gh pr review "$number" --approve --body "$message" 2>&1) || {
-        if printf '%s' "$out" | grep -qi "own pull request"; then
-            die "PR #${number} は自分が作成した PR のため承認できません（GitHub の仕様）。他のメンバーに依頼してください。"
-        fi
+    if out=$(gh pr review "$number" --approve --body "$message" 2>&1); then
+        info "PR #${number} を承認しました。"
+        return 0
+    fi
+    if ! printf '%s' "$out" | grep -qi "own pull request"; then
         die "PR #${number} の承認に失敗しました: $out"
-    }
-    info "PR #${number} を承認しました。"
+    fi
+
+    # 自分の PR: GitHub の Approve は不可のため、コメントレビューで承認の意思を残す
+    [[ "$message" =~ ^[[:space:]]*[Ll][Gg][Tt][Mm] ]] \
+        || die "自分の PR の承認はコメントレビューで記録するため、コメントは LGTM で始めてください: $message"
+    out=$(gh pr review "$number" --comment --body "$message" 2>&1) \
+        || die "PR #${number} へのコメントレビューに失敗しました: $out"
+    info "自分の PR のため、コメントレビュー「${message}」で承認を記録しました（merge で承認として扱われます）。"
+}
+
+# PR に承認があるか（Approve、または本文が LGTM で始まるコメントレビュー。作成者本人のものも可）
+approval_count() {
+    gh pr view "$1" --json reviews \
+        --jq '[.reviews[] | select(.state == "APPROVED" or (.state == "COMMENTED" and (.body | test("^\\s*lgtm"; "i"))))] | length'
 }
 
 cmd_list() {
@@ -472,9 +493,10 @@ cmd_prune() {
 }
 
 cmd_protect() {
-    # 既定の必須承認数は 1（チーム決定、2026-09-23。当初 2 としたが「保護は必要以上に強くしない」方針で 1 に変更）。
-    # 作成者は自分の PR を承認できないため、作成者 + レビュアー 1 名の最低 2 名が必要。
-    local execute="" reviews=1
+    # GitHub 側の必須承認数の既定は 0（チーム決定、2026-09-23。2 → 1 → 0 と緩和）。
+    # GitHub は作成者本人の Approve を認めないため、「本人を含め誰かが承認すればよい」ポリシーは
+    # GitHub では表現できない。承認の確認は flow.sh merge 側（approval_count）で行う。
+    local execute="" reviews=0
     while [ $# -gt 0 ]; do
         case "$1" in
             --execute) execute=1; shift ;;
@@ -553,16 +575,17 @@ flow.sh — hackathon-starter-kit git ワークフロー CLI（GitHub 版）
                        PR をマージし、ローカル main を更新する。
                        ★チーム開発のため、ユーザーの明示的な指示があるときだけ実行する。
                        PR 番号必須。--approved が無い場合は対話確認（非対話環境では拒否）。
-                       draft・コンフリクト・変更要求・CI 失敗の PR は拒否する。
+                       承認（approve）が 1 件も無い PR、draft・コンフリクト・変更要求・CI 失敗の PR は拒否する。
   approve <PR番号> [-m <コメント>]
-                       PR を承認する（レビュアー用）。コメント既定: LGTM
+                       PR を承認する（作成者本人も可）。コメント既定: LGTM
+                       自分の PR は GitHub 仕様上 Approve できないため LGTM コメントレビューで記録
   sync                 ローカル main を origin/main に追従させる
   list                 worktree の一覧
   status               現在地・ブランチ・hooks・gh 認証の表示
   prune [--days N] [--execute] [--include-unmerged]
                        N 日（既定 365）より古いリモートブランチを棚卸し。既定はドライラン。
                        月次棚卸しは --days 30 を明示。未マージは既定で対象外。
-  protect [--reviews N(既定 1)] [--execute]
+  protect [--reviews N(既定 0)] [--execute]
                        main のブランチ保護（PR 必須・CI gate 必須・承認 N 件・force push 禁止）。
                        既定はドライラン。リポジトリ管理者のみ。
 

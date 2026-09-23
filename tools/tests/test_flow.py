@@ -231,11 +231,36 @@ def test_pr_stops_on_gate_failure_before_push(sandbox):
 # ------------------------------------------------------------------ merge（チーム開発: 承認必須）
 
 
-def _open_pr(sb, slug="feat"):
+def _open_pr(sb, slug="feat", approve=True):
     start_branch(sb, slug)
     assert sb.commit_file(f"{slug}.txt", "x\n", message=f"feat: {slug}").returncode == 0
     assert sb.flow("pr").returncode == 0
-    return sb.gh_state["prs"][-1]["number"]
+    number = sb.gh_state["prs"][-1]["number"]
+    if approve:
+        assert sb.flow("approve", str(number)).returncode == 0
+    return number
+
+
+def test_merge_refuses_pr_without_any_approval(sandbox):
+    n = _open_pr(sandbox, approve=False)
+    res = sandbox.flow("merge", str(n), "--approved")
+    assert res.returncode == 1
+    assert "承認がありません" in res.stderr
+    assert "作成者本人でも可" in res.stderr
+    assert not any(c[:2] == ["pr", "merge"] for c in sandbox.gh_state["calls"])
+
+
+def test_merge_accepts_self_approval_by_lgtm_comment(sandbox):
+    """承認ポリシー: 作成者本人の承認（LGTM コメントレビュー）でもマージできる。"""
+    n = _open_pr(sandbox, approve=False)
+    sandbox.update_pr(n, author="me")
+    res = sandbox.flow("approve", str(n))
+    assert res.returncode == 0, res.stderr
+    assert "コメントレビュー「LGTM」で承認を記録" in res.stdout
+    assert ["pr", "review", str(n), "--comment", "--body", "LGTM"] in sandbox.gh_state["calls"]
+    res = sandbox.flow("merge", str(n), "--approved")
+    assert res.returncode == 0, res.stderr
+    assert sandbox.gh_state["prs"][0]["state"] == "MERGED"
 
 
 def test_merge_requires_pr_number(sandbox):
@@ -337,7 +362,7 @@ def test_merge_interactive_accept(sandbox):
 
 
 def test_approve_default_comment_is_lgtm(sandbox):
-    n = _open_pr(sandbox)
+    n = _open_pr(sandbox, approve=False)
     res = sandbox.flow("approve", str(n))
     assert res.returncode == 0, res.stderr
     assert ["pr", "review", str(n), "--approve", "--body", "LGTM"] in sandbox.gh_state["calls"]
@@ -345,19 +370,20 @@ def test_approve_default_comment_is_lgtm(sandbox):
 
 
 def test_approve_custom_comment(sandbox):
-    n = _open_pr(sandbox)
+    n = _open_pr(sandbox, approve=False)
     res = sandbox.flow("approve", str(n), "-m", "LGTM! 動作確認済み")
     assert res.returncode == 0, res.stderr
     assert sandbox.gh_state["prs"][0]["reviews"][0]["body"] == "LGTM! 動作確認済み"
 
 
 def test_approve_refuses_bad_input_and_own_pr(sandbox):
-    n = _open_pr(sandbox)
+    n = _open_pr(sandbox, approve=False)
     assert "PR 番号は必須" in sandbox.flow("approve").stderr
+    # 自分の PR は LGTM で始まらないコメントでは承認扱いにできない
     sandbox.update_pr(n, author="me")
-    res = sandbox.flow("approve", str(n))
+    res = sandbox.flow("approve", str(n), "-m", "よさそう")
     assert res.returncode == 1
-    assert "自分が作成した PR" in res.stderr
+    assert "LGTM で始めて" in res.stderr
     sandbox.update_pr(n, author="other", state="MERGED")
     res = sandbox.flow("approve", str(n))
     assert res.returncode == 1
@@ -391,7 +417,7 @@ def test_prune_marks_unmerged(sandbox):
 def test_protect_is_dry_run_by_default(sandbox):
     res = sandbox.flow("protect")
     assert res.returncode == 0, res.stderr
-    assert '"required_approving_review_count": 1' in res.stdout
+    assert '"required_approving_review_count": 0' in res.stdout
     assert '"dismiss_stale_reviews": false' in res.stdout
     assert '"enforce_admins": false' in res.stdout
     assert not any(c[:1] == ["api"] for c in sandbox.gh_state["calls"])

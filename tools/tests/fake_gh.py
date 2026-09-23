@@ -102,6 +102,16 @@ def main(argv: list[str]) -> int:
             print(f"https://github.com/owner/repo/pull/{pr['number']}")
         elif fields == "state":
             print(pr["state"])
+        elif fields == "reviews":
+            # flow.sh の --jq（Approve または LGTM で始まるコメントレビューの件数）と同じ結果を返す
+            print(
+                sum(
+                    1
+                    for r in pr.get("reviews", [])
+                    if r["state"] == "APPROVED"
+                    or (r["state"] == "COMMENTED" and (r["body"] or "").lstrip().lower().startswith("lgtm"))
+                )
+            )
         else:
             print(
                 "\x1f".join(
@@ -123,11 +133,16 @@ def main(argv: list[str]) -> int:
 
     if argv[:2] == ["pr", "review"]:
         pr = find(state, int(argv[2]))
-        if pr.get("author") == "me":
+        approve = "--approve" in argv
+        # GitHub と同じく、作成者本人の Approve は拒否する（コメントレビューは可）
+        if approve and pr.get("author") == "me":
             print("failed to create review: Can not approve your own pull request", file=sys.stderr)
             return 1
-        pr["reviewDecision"] = "APPROVED"
-        pr.setdefault("reviews", []).append({"approve": "--approve" in argv, "body": opt(argv, "--body")})
+        if approve:
+            pr["reviewDecision"] = "APPROVED"
+        pr.setdefault("reviews", []).append(
+            {"state": "APPROVED" if approve else "COMMENTED", "body": opt(argv, "--body")}
+        )
         save(state)
         return 0
 

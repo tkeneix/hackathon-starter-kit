@@ -22,6 +22,7 @@
    PR はレビューを経る）。指示を受けたら `tools/bin/flow.sh merge <PR番号> --approved`。
    `gh pr merge` や GitHub API で直接マージしない。PR 作成後に「続けてマージしますか？」と促すこともしない。
    PR の承認（`tools/bin/flow.sh approve <PR番号>`、コメント既定 "LGTM"）も、ユーザーの指示があるときだけ行う。
+   承認ポリシー: 作成者本人を含め誰か 1 人の承認があればマージしてよい（`merge` は承認 0 件の PR を拒否する）。
 5. ゲート（`flow.sh check`）が落ちたら直す。`--no-verify` で迂回しない。秘密情報の誤検知は
    本当に誤検知か確認したうえで行末に `flow:allow-secret` を付ける。
 6. force push・履歴書き換え・未コミット変更の破棄・リモートブランチ削除（`prune --execute`）・

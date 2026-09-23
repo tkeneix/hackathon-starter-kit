@@ -10,7 +10,8 @@
 |---|---|
 | PR 操作・認証 | 公式 `gh` CLI（`gh auth login` + `gh auth setup-git`） |
 | 既存 PR の判定 | head ブランチ名の一致で判定（無関係な open PR を誤って再利用しない） |
-| マージ | **ユーザーの明示指示が必要**。PR 番号必須 + `--approved` |
+| 承認 | 作成者本人を含め誰か 1 人の承認（`flow.sh approve`、コメント既定 LGTM）があればよい |
+| マージ | **ユーザーの明示指示が必要**。PR 番号必須 + `--approved` + 承認 1 件以上 |
 | マージ方式 | squash（`FLOW_MERGE_METHOD` で変更可） |
 | hooks | `core.hooksPath=tools/git-hooks`。pre-commit（main へのコミット拒否 + ゲート）/ pre-push（main への push 拒否） |
 | ゲート | syntax / secret / envfile / largefile |
@@ -35,7 +36,7 @@ tools/bin/flow.sh start csv-loader      # origin/main から work/<yyyymmdd>-csv
 # ... 作業してコミット（複数回可）。pre-commit でゲートが走る ...
 tools/bin/flow.sh pr -t "CSV ローダ追加"   # ゲート → push → PR 作成（既存 PR があれば再利用）
 # ... GitHub 上でレビュー・CI 確認 ...
-tools/bin/flow.sh approve 12             # レビュアーが承認（コメント既定: LGTM。-m で変更可）
+tools/bin/flow.sh approve 12             # 承認（作成者本人でも可。コメント既定: LGTM。-m で変更可）
 tools/bin/flow.sh merge 12 --approved   # ★ユーザー（チーム）が「マージして」と指示した後だけ
 tools/bin/flow.sh sync                  # 他メンバーのマージを取り込む（ローカル main 更新）
 ```
@@ -50,11 +51,23 @@ tools/bin/flow.sh sync                  # 他メンバーのマージを取り�
 ### merge の安全装置（チーム開発仕様）
 
 - PR 番号の明示が必須（「現在のブランチの PR」を推測しない）
+- **承認が 1 件以上必要**。Approve、または本文が "LGTM" で始まるコメントレビューを数える（作成者本人のものも可）
 - `--approved` が無い場合、端末からなら y/N 確認、非対話環境（AI エージェント・CI）なら拒否
 - draft / コンフリクト / 変更要求 (CHANGES_REQUESTED) / CI 失敗の PR は拒否。CI 実行中・未設定は警告
 - Claude Code では `.claude/settings.json` の `ask` ルールで `flow.sh merge` / `gh pr merge` の実行前に
   必ず人間の承認ダイアログが出る
 - 最終的な強制は GitHub のブランチ保護（§5）。ローカルの仕組みは回避可能なので、これだけに頼らない
+
+### 承認ポリシー（デモ環境向け、2026-09-23）
+
+**作成者本人を含め、誰か 1 人が承認すればマージしてよい。**
+
+- GitHub は作成者本人の Approve を仕様上認めない。そのため `flow.sh approve` は、自分の PR に対しては
+  同じ本文（既定 "LGTM"）の**コメントレビュー**を残し、`flow.sh merge` がそれを承認として数える
+- 自分の PR へのコメントは "LGTM" で始まる必要がある（普通のコメントを承認と誤認しないため）
+- GitHub 側の必須承認数は 0（§5）。承認の確認は `flow.sh merge` が行うため、GitHub の画面から
+  直接マージする場合は承認の有無を目視で確認する
+- 本番運用などで他者レビューを必須にしたくなったら `flow.sh protect --reviews 1 --execute`
 
 ## 4. マージ前ゲート（`check`）
 
@@ -93,13 +106,13 @@ python3 標準ライブラリのみで動く（venv 不要）。pre-commit フ�
 
 ```bash
 tools/bin/flow.sh protect                 # ドライラン: 設定内容を表示
-tools/bin/flow.sh protect --execute       # main を保護（承認 1 件・CI gate 必須・force push/削除禁止）
-tools/bin/flow.sh protect --reviews 2 --execute   # 後から承認数を増やす場合（再実行で上書き）
+tools/bin/flow.sh protect --execute       # main を保護（PR 必須・CI gate 必須・force push/削除禁止。必須承認 0）
+tools/bin/flow.sh protect --reviews 1 --execute   # 他者レビューを必須にする場合（再実行で上書き）
 ```
 
 - **保護は必要以上に強くしない方針**（チーム決定 2026-09-23）。守るのは「main へは PR 経由・CI 合格・
-  承認 1 件」「履歴の書き換え・ブランチ削除の禁止」だけ
-- 承認 1 件の既定: 作成者は自分の PR を承認できないため、作成者 + レビュアーの最低 2 名が必要
+  （承認は flow.sh merge 側で確認）」「履歴の書き換え・ブランチ削除の禁止」だけ
+- GitHub 側の必須承認数は 0。「作成者本人を含め誰かが承認」は GitHub の設定では表現できないため（§3 承認ポリシー）
 - 緩めている項目: `enforce_admins=false`（締切直前の緊急時に管理者が回避できる）、
   `dismiss_stale_reviews=false`（承認後の追加 push で承認をリセットしない）、
   `strict=false`（PR ブランチに最新 main の取り込みを強制しない）
@@ -126,7 +139,7 @@ flow.sh setup                                  初回セットアップ確認
 flow.sh start <短い内容> [--worktree]           作業ブランチ（または worktree）作成
 flow.sh check [--only ...]                     マージ前ゲート
 flow.sh pr [-t <title>] [-b <body>] [--draft]  ゲート -> push -> PR 作成
-flow.sh approve <PR番号> [-m <コメント>]       PR を承認（レビュアー用、コメント既定 LGTM）
+flow.sh approve <PR番号> [-m <コメント>]       PR を承認（本人も可、コメント既定 LGTM）
 flow.sh merge <PR番号> [--approved]             PR マージ（ユーザー指示時のみ）+ ローカル main 更新
 flow.sh sync                                   ローカル main を origin に追従
 flow.sh list / status                          worktree 一覧 / 現在の状態
