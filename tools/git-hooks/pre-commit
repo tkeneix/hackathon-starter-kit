@@ -1,0 +1,40 @@
+#!/bin/sh
+# tools/git-hooks/pre-commit
+#
+# hackathon-starter-kit の pre-commit フック（2026-09-23）。
+#
+# 背景: 「ブランチを切る」「ゲートを通す」を文章のルールとして"覚えておく"運用では、長い作業の
+# 途中で抜け落ちる。commit という操作そのものに埋め込み、技術的に防ぐ。
+#
+# チェック内容:
+#   1. 現在のブランチが main（FLOW_BASE_BRANCH）ならコミットを拒否する
+#   2. tools/bin/flow_gate.py（syntax/secret/envfile/largefile）を実行し、不合格なら拒否する
+#
+# 有効化: core.hooksPath=tools/git-hooks（tools/bin/flow.sh のどのサブコマンドでも自動設定）。
+# 意図的にスキップする場合（原則非推奨。理由をコミットメッセージに残す）: git commit --no-verify
+
+set -eu
+
+repo_root=$(git rev-parse --show-toplevel)
+base_branch="${FLOW_BASE_BRANCH:-main}"
+branch=$(git symbolic-ref --short HEAD 2>/dev/null || echo "")
+
+if [ "$branch" = "$base_branch" ]; then
+    echo "エラー: ${base_branch} 上では直接コミットできません。作業ブランチを作成してください:" >&2
+    echo "  tools/bin/flow.sh start <短い内容>" >&2
+    echo "詳細: docs/git-workflow.md" >&2
+    exit 1
+fi
+
+gate="$repo_root/tools/bin/flow_gate.py"
+if [ -f "$gate" ]; then
+    if ! python3 "$gate" --repo-root "$repo_root" --base-ref "$base_branch"; then
+        echo "" >&2
+        echo "エラー: マージ前ゲート不合格のためコミットを中断しました。" >&2
+        echo "秘密情報の誤検知なら該当行末に 'flow:allow-secret' を付けてください" \
+             "（付ける前に本当に誤検知か確認すること）。" >&2
+        exit 1
+    fi
+fi
+
+exit 0

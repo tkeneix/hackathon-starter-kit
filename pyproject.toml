@@ -1,0 +1,27 @@
+[project]
+name = "hackathon-starter-kit"
+version = "0.1.0"
+description = "ハッカソン向けスターターキット（データ分析 → 企画 → Web アプリ + DB + LLM）"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "ruff>=0.6",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tools/tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]

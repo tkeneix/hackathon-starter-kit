@@ -1,0 +1,23 @@
+#!/bin/sh
+# tools/git-hooks/pre-push
+#
+# main（FLOW_BASE_BRANCH）への直接 push を拒否する（2026-09-23 追加）。
+# main への反映は必ず PR 経由（tools/bin/flow.sh pr → レビュー → ユーザー指示で merge）。
+# GitHub 側のブランチ保護（flow.sh protect）と二重化し、ローカルでも早期に止める。
+#
+# 意図的にスキップする場合（原則非推奨）: git push --no-verify
+
+set -eu
+
+base_branch="${FLOW_BASE_BRANCH:-main}"
+
+# stdin: <local ref> <local sha> <remote ref> <remote sha>
+while read -r _local_ref _local_sha remote_ref _remote_sha; do
+    if [ "$remote_ref" = "refs/heads/$base_branch" ]; then
+        echo "エラー: ${base_branch} への直接 push は禁止です。PR を作成してください:" >&2
+        echo "  tools/bin/flow.sh pr -t \"タイトル\"" >&2
+        exit 1
+    fi
+done
+
+exit 0
