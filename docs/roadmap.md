@@ -3,7 +3,7 @@
 ハッカソンの流れ（データ分析 → 企画 → 資料・発表 → 仕様決め → Web アプリ + DB + LLM をコンテナで起動）を
 チームで回すために、このリポジトリに何を入れておくかの計画。2026-09-23 作成。
 
-**方針**: 「clone → `flow.sh setup` → `make up` で全員が同じ環境」を最優先にする。ハッカソンは時間が
+**方針**: 「テンプレートから作成 → clone → `flow.sh setup` → `make up` で全員が同じ環境」を最優先にする。ハッカソンは時間が
 最大の制約なので、選定基準は (1) 環境差で詰まらない (2) 学習コストが低い (3) 生成 AI（Claude Code）が
 扱いやすい情報量の多い定番、の順。
 
@@ -11,19 +11,21 @@
 
 | # | フェーズ | 状態 | 主な成果物 |
 |---|---|---|---|
-| 0 | チーム開発の土台（PR フロー） | **本 PR** | flow.sh・ゲート・hooks・CI・CLAUDE.md・setup.md |
+| 0 | チーム開発の土台（PR フロー・テンプレート化） | 完了 | flow.sh・ゲート・hooks・CI・CLAUDE.md・setup.md・`flow.sh init` |
 | 1 | 開発環境の骨格 | 未着手 | compose.yaml・Makefile・.env.example・uv workspace |
 | 2 | データ分析 | 未着手 | notebooks/・data/ 規約・nbstripout・分析用依存 |
 | 3 | 企画・資料・発表 | 未着手 | docs/ideas テンプレ・Marp スライド雛形 |
 | 4 | 仕様決め | 未着手 | 仕様書・ADR・Issue テンプレ |
 | 5 | アプリ開発 | 未着手 | backend（API + DB + LLM）・frontend・E2E |
 
-## フェーズ 0: チーム開発の土台（本 PR）
+## フェーズ 0: チーム開発の土台
 
 - `tools/bin/flow.sh`（ブランチ・PR・マージの CLI）・`flow_gate.py`・pre-commit/pre-push hooks
 - GitHub Actions: ゲート + shellcheck + ruff + pytest（ジョブ名 `gate` をブランチ保護の必須チェックに）
 - PR テンプレート、`.claude/settings.json`（マージ系は承認必須）、CLAUDE.md（マージはユーザー指示時のみ）
-- 結合テスト 30 件（bare リポジトリ + fake gh で GitHub に触れずに検証）
+- GitHub テンプレートリポジトリとして配布。`flow.sh init` でプロジェクト固有値を置き換え、ファイルを
+  「キット共通部品 / プロジェクト固有値 / プロジェクトで育てるもの」に分類（[setup.md](setup.md) §4）
+- 結合テスト（bare リポジトリ + fake gh で GitHub に触れずに検証）
 
 ## フェーズ 1: 開発環境の骨格
 

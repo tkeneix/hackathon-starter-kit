@@ -3,6 +3,8 @@
 ハッカソン向けスターターキット。**チーム開発**で、データ分析（Jupyter）→ アプリ企画 → 資料作成・発表
 → 仕様決め → Web アプリ開発（DB・LLM 利用、コンテナ起動）までを 1 リポジトリで進める。
 全体計画は [docs/roadmap.md](docs/roadmap.md)、環境構築は [docs/setup.md](docs/setup.md)。
+GitHub のテンプレートリポジトリから作る前提で、`tools/`・`.github/` などはキット共通部品として扱う
+（ファイルの分類は [docs/setup.md](docs/setup.md) §4。共通部品を変えるときはキット側への反映も検討する）。
 
 このファイルはリポジトリにコミットされ、clone 先のどの環境でも効く。個人マシン側の共通ガイドライン
 （上位ディレクトリの CLAUDE.md 等）が無い環境でも、以下のルールだけで運用が成立するように書いている。
@@ -44,6 +46,7 @@
 
 ```bash
 tools/bin/flow.sh setup        # clone 直後（hooks 有効化・必須ツール・gh 認証の確認）
+tools/bin/flow.sh init         # テンプレートから作成した直後に作成者が 1 回（プロジェクト名の置き換え）
 uv sync                        # Python 依存関係
 uv run pytest                  # テスト（tools/tests: git ワークフローの結合テスト）
 uv run ruff check . && uv run ruff format --check .

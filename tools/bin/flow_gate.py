@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""flow_gate.py — hackathon-starter-kit マージ前ゲート
+"""flow_gate.py — マージ前ゲート（hackathon-starter-kit の共通部品）
 
 tools/bin/flow.sh の `check` サブコマンド、pre-commit フック、GitHub Actions (CI) から呼ばれる。
 単体でも実行可。
@@ -255,7 +255,7 @@ CHECKS = ("syntax", "secret", "envfile", "largefile")
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="hackathon-starter-kit マージ前ゲート")
+    parser = argparse.ArgumentParser(description="マージ前ゲート")
     parser.add_argument("--repo-root", default=".", help="対象 worktree のルート")
     parser.add_argument("--base-ref", default="main", help="比較元（既定: main。origin/main があれば優先）")
     parser.add_argument("--only", default=",".join(CHECKS), help="実行するチェックをカンマ区切りで指定（既定: 全部）")
