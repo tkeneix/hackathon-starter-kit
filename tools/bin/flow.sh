@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# flow.sh — hackathon-starter-kit git ワークフロー CLI（GitHub 版）
+# flow.sh — git ワークフロー CLI（GitHub 版。hackathon-starter-kit の共通部品）
 #
 # 作業ブランチ作成 → マージ前ゲート → push → GitHub PR 作成 → (ユーザー指示時のみ) マージ
 # → ブランチ棚卸し までを扱う。
@@ -27,6 +27,10 @@ readonly HOOKS_PATH="tools/git-hooks"
 readonly BRANCH_PREFIX="work/"
 readonly LOG_MAX_BYTES=$((1024 * 1024))
 readonly LOG_GENERATIONS=7
+
+# テンプレートリポジトリ（init で派生先の値に置き換える対象）
+readonly TEMPLATE_REPO="tkeneix/hackathon-starter-kit"
+readonly TEMPLATE_NAME="hackathon-starter-kit"
 
 # ---------------------------------------------------------------- 出力・ログ
 
@@ -538,6 +542,95 @@ EOF
     info "ブランチ保護を設定しました: $repo:$BASE_BRANCH"
 }
 
+# GitHub のリモート URL から owner/repo を取り出す（https / ssh 両対応）
+repo_slug_from_remote() {
+    local url
+    url=$(git config --get remote.origin.url 2>/dev/null) || return 1
+    url=${url%.git}
+    case "$url" in
+        https://github.com/*)   printf '%s\n' "${url#https://github.com/}" ;;
+        git@github.com:*)       printf '%s\n' "${url#git@github.com:}" ;;
+        ssh://git@github.com/*) printf '%s\n' "${url#ssh://git@github.com/}" ;;
+        *) return 1 ;;
+    esac
+}
+
+# テンプレートから作成した直後のリポジトリを、そのプロジェクト用に初期化する（2026-09-23）。
+# 作業ブランチ work/<yyyymmdd>-init を作り、プロジェクト固有の値を置き換えてコミットするところまで行う。
+# push と PR 作成は利用者が flow.sh pr で行う（その PR で CI が初めて走り、ブランチ保護を設定できる）。
+cmd_init() {
+    local slug="" name=""
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --repo) [ $# -ge 2 ] || die "--repo に値がありません"; slug=$2; shift 2 ;;
+            --name) [ $# -ge 2 ] || die "--name に値がありません"; name=$2; shift 2 ;;
+            *)      die "不明なオプション: $1" ;;
+        esac
+    done
+
+    if [ -z "$slug" ]; then
+        slug=$(repo_slug_from_remote) \
+            || die "origin から owner/repo を判定できません。--repo <owner>/<repo> を指定してください。"
+    fi
+    [[ "$slug" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || die "--repo は <owner>/<repo> 形式で指定してください: $slug"
+    [ "$slug" != "$TEMPLATE_REPO" ] \
+        || die "テンプレートリポジトリ自身では実行できません（テンプレートから作成したリポジトリで実行してください）。"
+    [ -n "$name" ] || name=${slug#*/}
+    [[ "$name" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*$ ]] || die "--name は英数字と . _ - のみ: $name"
+
+    local root
+    root=$(git rev-parse --show-toplevel)
+    grep -q "^name = \"${TEMPLATE_NAME}\"" "$root/pyproject.toml" 2>/dev/null \
+        || die "初期化済みのようです（pyproject.toml の name が ${TEMPLATE_NAME} ではありません）。"
+
+    info "テンプレートから初期化します: repo=$slug name=$name"
+    cmd_start init
+
+    # 置き換えは python3 で文字列として行う（sed の区切り文字・エスケープ問題を避ける）。
+    # 対象ファイルと置換内容は明示的に限定する（キット共通部品は触らない）。
+    python3 - "$root" "$TEMPLATE_REPO" "$slug" "$TEMPLATE_NAME" "$name" <<'PY' \
+        || die "プロジェクト固有値の置き換えに失敗しました。"
+import pathlib, sys
+root, old_repo, new_repo, old_name, new_name = sys.argv[1:]
+root = pathlib.Path(root)
+targets = [
+    ("README.md", [(old_repo, new_repo), (f"# {old_name}\n", f"# {new_name}\n"), (f"cd {old_name}", f"cd {new_name}")]),
+    ("CLAUDE.md", [(f"# CLAUDE.md — {old_name}\n", f"# CLAUDE.md — {new_name}\n")]),
+    ("pyproject.toml", [(f'name = "{old_name}"', f'name = "{new_name.lower()}"')]),
+]
+for rel, pairs in targets:
+    path = root / rel
+    if not path.is_file():
+        print(f"  - {rel} が無いためスキップ")
+        continue
+    text = path.read_text(encoding="utf-8")
+    for old, new in pairs:
+        text = text.replace(old, new)
+    path.write_text(text, encoding="utf-8")
+    print(f"  ✓ {rel}")
+PY
+
+    if [ -f "$root/uv.lock" ]; then
+        if command -v uv >/dev/null 2>&1; then
+            (cd "$root" && uv lock --quiet) || die "uv lock に失敗しました。"
+            echo "  ✓ uv.lock"
+        else
+            warn "uv が無いため uv.lock を更新していません。uv を入れて 'uv lock' を実行してください。"
+        fi
+    fi
+
+    git -C "$root" add -A
+    git -C "$root" commit --quiet -m "テンプレートから初期化: $name" \
+        || die "コミットに失敗しました（ゲートの出力を確認してください）。"
+    info "初期化をコミットしました。続けて:"
+    cat <<NEXT
+  1. tools/bin/flow.sh pr -t "テンプレートから初期化"      # 初回 PR（ここで CI が初めて走る）
+  2. CI 合格を確認後: tools/bin/flow.sh protect --execute  # main のブランチ保護
+  3. tools/bin/flow.sh approve <PR番号> → tools/bin/flow.sh merge <PR番号> --approved
+  4. GitHub の Settings → Collaborators でメンバーを招待
+NEXT
+}
+
 cmd_status() {
     require_git_repo
     local root here branch
@@ -561,9 +654,12 @@ cmd_status() {
 
 cmd_help() {
     cat <<'EOF'
-flow.sh — hackathon-starter-kit git ワークフロー CLI（GitHub 版）
+flow.sh — git ワークフロー CLI（GitHub 版）
 
   setup                初回セットアップ確認（hooks 有効化・必須ツール・gh 認証）。clone 直後に実行
+  init [--repo <owner>/<repo>] [--name <名前>]
+                       テンプレートから作成したリポジトリの初期化（プロジェクト名等の置き換え）。
+                       作業ブランチ work/<yyyymmdd>-init を作ってコミットまで行う（作成者が 1 回だけ実行）
   start <短い内容> [--worktree]
                        origin/main から work/<yyyymmdd>-<短い内容> ブランチを作成
                        --worktree なら .worktrees/<短い内容> に worktree として作成
@@ -610,6 +706,7 @@ main() {
     ensure_hooks_installed
     case "$cmd" in
         setup)   cmd_setup   "$@" ;;
+        init)    cmd_init    "$@" ;;
         start)   cmd_start   "$@" ;;
         check)   cmd_check   "$@" ;;
         pr)      cmd_pr      "$@" ;;

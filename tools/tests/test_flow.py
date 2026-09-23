@@ -440,3 +440,72 @@ def test_log_file_written_in_jst(sandbox):
     log = (sandbox.work / ".git/flow-logs/flow.log").read_text()
     assert "cmd=status" in log
     assert "+0900 [INFO]" in log
+
+
+# ------------------------------------------------------------------ init（テンプレートからの初期化）
+
+TEMPLATE_README = "# hackathon-starter-kit\n\ngh repo clone tkeneix/hackathon-starter-kit && cd hackathon-starter-kit\n"
+TEMPLATE_CLAUDE = "# CLAUDE.md — hackathon-starter-kit\n\nルール\n"
+TEMPLATE_PYPROJECT = '[project]\nname = "hackathon-starter-kit"\nversion = "0.1.0"\n'
+
+
+def _as_template(sb):
+    """テンプレートから作成した直後の状態（main にテンプレートの README 等がある）を作る。hooks はまだ未有効。"""
+    (sb.work / "README.md").write_text(TEMPLATE_README)
+    (sb.work / "CLAUDE.md").write_text(TEMPLATE_CLAUDE)
+    (sb.work / "pyproject.toml").write_text(TEMPLATE_PYPROJECT)
+    sb.git("add", "-A")
+    sb.git("commit", "-q", "-m", "template")
+    sb.git("push", "-q", "origin", "main")
+
+
+def test_init_replaces_project_values_on_work_branch(sandbox):
+    _as_template(sandbox)
+    kit_before = (sandbox.work / "tools/bin/flow.sh").read_text()
+    res = sandbox.flow("init", "--repo", "team/Demo-App")
+    assert res.returncode == 0, res.stdout + res.stderr
+
+    assert sandbox.git("rev-parse", "--abbrev-ref", "HEAD").stdout.strip() == f"work/{today_jst()}-init"
+    readme = (sandbox.work / "README.md").read_text()
+    assert readme.startswith("# Demo-App\n")
+    assert "gh repo clone team/Demo-App && cd Demo-App" in readme
+    assert "hackathon-starter-kit" not in readme
+    assert (sandbox.work / "CLAUDE.md").read_text().startswith("# CLAUDE.md — Demo-App\n")
+    assert 'name = "demo-app"' in (sandbox.work / "pyproject.toml").read_text()  # PEP 508 用に小文字化
+    # キット共通部品は触らない
+    assert (sandbox.work / "tools/bin/flow.sh").read_text() == kit_before
+    # コミット済み・未コミットなし・次の手順を案内
+    assert sandbox.git("log", "-1", "--format=%s").stdout.strip() == "テンプレートから初期化: Demo-App"
+    assert sandbox.git("status", "--porcelain").stdout == ""
+    assert "flow.sh pr" in res.stdout and "protect --execute" in res.stdout
+
+
+def test_init_name_option_and_refuses_second_run(sandbox):
+    _as_template(sandbox)
+    assert sandbox.flow("init", "--repo", "team/x", "--name", "my-app").returncode == 0
+    assert 'name = "my-app"' in (sandbox.work / "pyproject.toml").read_text()
+    res = sandbox.flow("init", "--repo", "team/x")
+    assert res.returncode == 1
+    assert "初期化済み" in res.stderr
+
+
+def test_init_refuses_on_template_itself_https_and_ssh(sandbox):
+    _as_template(sandbox)
+    for url in (
+        "https://github.com/tkeneix/hackathon-starter-kit.git",
+        "git@github.com:tkeneix/hackathon-starter-kit.git",
+    ):
+        sandbox.git("remote", "set-url", "origin", url)
+        res = sandbox.flow("init")
+        assert res.returncode == 1, url
+        assert "テンプレートリポジトリ自身" in res.stderr
+    assert sandbox.git("rev-parse", "--abbrev-ref", "HEAD").stdout.strip() == "main"
+
+
+def test_init_rejects_bad_repo_and_unknown_remote(sandbox):
+    _as_template(sandbox)
+    assert "形式" in sandbox.flow("init", "--repo", "no-slash").stderr
+    # origin がローカルパス（GitHub 以外）の場合は --repo が必要
+    res = sandbox.flow("init")
+    assert res.returncode == 1
+    assert "--repo" in res.stderr

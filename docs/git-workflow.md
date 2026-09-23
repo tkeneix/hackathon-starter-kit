@@ -136,6 +136,7 @@ tools/bin/flow.sh prune --days 30 --execute   # 確認の上で削除
 
 ```
 flow.sh setup                                  初回セットアップ確認
+flow.sh init [--repo <o>/<r>] [--name <n>]     テンプレートから作成した直後の初期化（作成者が 1 回）
 flow.sh start <短い内容> [--worktree]           作業ブランチ（または worktree）作成
 flow.sh check [--only ...]                     マージ前ゲート
 flow.sh pr [-t <title>] [-b <body>] [--draft]  ゲート -> push -> PR 作成
