@@ -11,9 +11,9 @@
 
 | # | フェーズ | 状態 | 主な成果物 |
 |---|---|---|---|
-| 0 | チーム開発の土台（PR フロー・テンプレート化） | 完了 | flow.sh・ゲート・hooks・CI・CLAUDE.md・setup.md・`flow.sh init` |
+| 0 | チーム開発の土台（PR フロー・テンプレート化・AI 駆動開発プロセス） | 完了 | flow.sh・ゲート・hooks・CI・CLAUDE.md・setup.md・`flow.sh init`・8 ステップ（rules / skills / agents） |
 | 1 | 開発環境の骨格 | 未着手 | compose.yaml・Makefile・.env.example・uv workspace |
-| 2 | データ分析 | 未着手 | notebooks/・data/ 規約・nbstripout・分析用依存 |
+| 2 | データ分析 | 未着手 | `analysis/`（notebook は `analysis/notebooks/`）・data/ 規約・nbstripout・分析用依存 |
 | 3 | 企画・資料・発表 | 未着手 | docs/ideas テンプレ・Marp スライド雛形 |
 | 4 | 仕様決め | 未着手 | 仕様書・ADR・Issue テンプレ |
 | 5 | アプリ開発 | 未着手 | backend（API + DB + LLM）・frontend・E2E |
@@ -25,7 +25,9 @@
 - PR テンプレート、`.claude/settings.json`（マージ系は承認必須）、CLAUDE.md（マージはユーザー指示時のみ）
 - GitHub テンプレートリポジトリとして配布。`flow.sh init` でプロジェクト固有値を置き換え、ファイルを
   「キット共通部品 / プロジェクト固有値 / プロジェクトで育てるもの」に分類（[setup.md](setup.md) §4）
-- 結合テスト（bare リポジトリ + fake gh で GitHub に触れずに検証）
+- AI 駆動開発の 8 ステッププロセス（[process/8-step-development.md](process/8-step-development.md)）: プラン → 観点別レビュー →
+  TDD → 独立レビュー → 人間レビュー。`.claude/rules`・`skills`・`agents` と `docs/plans/` で運用する
+- 結合テスト（bare リポジトリ + fake gh で GitHub に触れずに検証）と、Claude 設定の構造テスト
 
 ## フェーズ 1: 開発環境の骨格
 
@@ -83,6 +85,7 @@
 | LLM | ハッカソン事務局が LiteLLM（OpenAI 互換）のエンドポイントを提供 |
 | PR の承認 | 作成者本人を含め誰か 1 人の承認でマージ可（デモ環境向け）。GitHub 側の必須承認数は 0。ブランチ保護は必要以上に強くしない |
 | 開発環境 | Linux 上で直接開発。devcontainer は標準にしない |
+| 開発プロセス | 8 ステップを全作業にフル適用。PR 作成は自動、承認・マージは人間の指示 |
 
 ## 未決事項
 

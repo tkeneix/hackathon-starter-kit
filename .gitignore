@@ -237,6 +237,9 @@ outputs/
 node_modules/
 .next/
 
+# --- 独立レビュー用の差分（docs/process/8-step-development.md Step 6）
+.review/
+
 # --- worktree（flow.sh start --worktree / Claude Code EnterWorktree）
 .worktrees/
 .claude/worktrees/

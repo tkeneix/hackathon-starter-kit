@@ -509,3 +509,28 @@ def test_init_rejects_bad_repo_and_unknown_remote(sandbox):
     res = sandbox.flow("init")
     assert res.returncode == 1
     assert "--repo" in res.stderr
+
+
+def test_pr_body_file_is_passed_verbatim(sandbox):
+    """PR 本文はファイルで渡す（本文にシェルの特殊文字が含まれても展開されない。Step 6 セキュリティレビュー指摘）。"""
+    start_branch(sandbox)
+    sandbox.commit_file("a.txt", "x\n", message="feat: a")
+    body = sandbox.root / "body.md"
+    body.write_text('## 課題\n$(touch pwned) `id` "quoted"\n', encoding="utf-8")
+    res = sandbox.flow("pr", "-t", "t", "--body-file", str(body))
+    assert res.returncode == 0, res.stderr
+    assert sandbox.gh_state["prs"][0]["body"] == body.read_text(encoding="utf-8")
+    assert not (sandbox.work / "pwned").exists()
+
+
+def test_pr_body_file_errors(sandbox):
+    start_branch(sandbox)
+    sandbox.commit_file("a.txt", "x\n")
+    res = sandbox.flow("pr", "--body-file", str(sandbox.root / "missing.md"))
+    assert res.returncode == 1
+    assert "本文ファイル" in res.stderr
+    body = sandbox.root / "b.md"
+    body.write_text("x")
+    res = sandbox.flow("pr", "-b", "x", "--body-file", str(body))
+    assert res.returncode == 1
+    assert "同時に指定" in res.stderr
