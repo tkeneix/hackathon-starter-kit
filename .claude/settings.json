@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tools/bin/flow.sh status*)",
+      "Bash(tools/bin/flow.sh check*)",
+      "Bash(tools/bin/flow.sh start *)",
+      "Bash(tools/bin/flow.sh pr*)",
+      "Bash(tools/bin/flow.sh sync*)",
+      "Bash(tools/bin/flow.sh list*)",
+      "Bash(tools/bin/flow.sh prune)",
+      "Bash(tools/bin/flow.sh prune --days *)",
+      "Bash(uv sync*)",
+      "Bash(uv run pytest*)",
+      "Bash(uv run ruff *)",
+      "Bash(shellcheck *)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git show*)",
+      "Bash(git branch*)",
+      "Bash(gh pr view*)",
+      "Bash(gh pr list*)",
+      "Bash(gh pr checks*)",
+      "Bash(gh pr diff*)"
+    ],
+    "ask": [
+      "Bash(*flow.sh merge*)",
+      "Bash(*gh pr merge*)",
+      "Bash(*flow.sh approve*)",
+      "Bash(*gh pr review*)",
+      "Bash(*gh api*)",
+      "Bash(*flow.sh protect*)",
+      "Bash(*flow.sh prune*--execute*)",
+      "Bash(*git push*--force*)",
+      "Bash(*git push*-f *)",
+      "Bash(*git push*main*)",
+      "Bash(*--no-verify*)",
+      "Bash(*git reset --hard*)"
+    ]
+  }
+}
