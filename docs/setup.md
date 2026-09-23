@@ -103,8 +103,9 @@ tools/bin/flow.sh pr -t "..."          # PR 作成 → URL が表示される
 
 承認・マージの運用は [git-workflow.md](git-workflow.md) §3。
 
-Claude Code を使う場合: リポジトリ直下で起動すれば [CLAUDE.md](../CLAUDE.md) と
-[.claude/settings.json](../.claude/settings.json)（承認・マージ系コマンドは必ず確認ダイアログ）が自動で効く。
+Claude Code を使う場合: リポジトリ直下で起動すれば [CLAUDE.md](../CLAUDE.md)、`.claude/` のルール・Skill・レビュアー、
+[.claude/settings.json](../.claude/settings.json)（承認・マージ系コマンドは確認ダイアログ、`.env` 等の読み取りは拒否）が自動で効く。
+開発は [8 ステップ開発プロセス](process/8-step-development.md)で進める。
 個人用の許可設定は `.claude/settings.local.json`（gitignore 対象）に書く。
 
 ## 4. 構成管理: ファイルの分類
@@ -113,9 +114,9 @@ Claude Code を使う場合: リポジトリ直下で起動すれば [CLAUDE.md]
 
 | 分類 | ファイル | 派生リポジトリでの扱い |
 |---|---|---|
-| **キット共通部品** | `tools/`、`.github/`、`.claude/settings.json`、`.gitignore`、`.gitattributes`、`.python-version`、`docs/git-workflow.md`、`docs/setup.md` | 原則そのまま使う。キット側の更新を §5 で取り込める。独自に変える場合は取り込み時の差分に注意 |
+| **キット共通部品** | `tools/`、`.github/`、`.claude/`（settings・rules・skills・agents）、`AGENTS.md`、`.gitignore`、`.gitattributes`、`.python-version`、`docs/git-workflow.md`、`docs/setup.md`、`docs/process/`、`docs/templates/`、`docs/checklists/` | 原則そのまま使う。キット側の更新を §5 で取り込める。独自に変える場合は取り込み時の差分に注意 |
 | **プロジェクト固有値** | `README.md`、`CLAUDE.md` の見出し、`pyproject.toml` の `name`、`uv.lock` | `flow.sh init` が自動で置き換える |
-| **プロジェクトで育てるもの** | `docs/roadmap.md`（決定事項）、アプリ・分析コード、`CLAUDE.md` のプロジェクト固有ルール | 自由に編集する |
+| **プロジェクトで育てるもの** | `docs/plans/`（タスクごとのプラン）、`docs/roadmap.md`（決定事項）、アプリ・分析コード、`CLAUDE.md` のプロジェクト固有ルール（技術・構成・コマンド） | 自由に編集する |
 
 - 秘密情報（`.env`）とデータ（`data/`）は git に入れない（ゲートで検出）。テンプレートにも含めない
 - 改行コードは `.gitattributes` で LF に統一している（どの OS で clone してもスクリプトが CRLF で壊れない）
@@ -133,8 +134,8 @@ git remote set-url --push kit DISABLED
 # 取り込み
 tools/bin/flow.sh start kit-update
 git fetch kit
-git diff HEAD kit/main --stat -- tools .github docs/git-workflow.md docs/setup.md   # 差分を確認
-git checkout kit/main -- tools .github/workflows                                      # 取り込むものだけ選ぶ
+git diff HEAD kit/main --stat -- tools .github .claude AGENTS.md docs/process docs/templates docs/checklists docs/git-workflow.md docs/setup.md   # 差分を確認
+git checkout kit/main -- tools .github/workflows .claude/rules .claude/skills .claude/agents   # 取り込むものだけ選ぶ
 uv run pytest && git commit -m "キット更新の取り込み" && tools/bin/flow.sh pr
 ```
 

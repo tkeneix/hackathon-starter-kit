@@ -1,6 +1,7 @@
 # Git 運用ガイド
 
 ブランチ・ゲート・PR・マージ・棚卸しの運用リファレンス。恒久ルールの要約は [../CLAUDE.md](../CLAUDE.md)。
+開発プロセス（8 ステップ）と各ステップの対応は [process/8-step-development.md](process/8-step-development.md) §7。
 実装は [../tools/bin/flow.sh](../tools/bin/flow.sh) / [../tools/bin/flow_gate.py](../tools/bin/flow_gate.py) /
 [../tools/git-hooks/](../tools/git-hooks/)。
 
