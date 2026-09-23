@@ -104,7 +104,7 @@ tools/bin/flow.sh pr -t "..."          # PR 作成 → URL が表示される
 承認・マージの運用は [git-workflow.md](git-workflow.md) §3。
 
 Claude Code を使う場合: リポジトリ直下で起動すれば [CLAUDE.md](../CLAUDE.md)、`.claude/` のルール・Skill・レビュアー、
-[.claude/settings.json](../.claude/settings.json)（承認・マージ系コマンドは確認ダイアログ、`.env` 等の読み取りは拒否）が自動で効く。
+[.claude/settings.json](../.claude/settings.json)（承認・マージ系コマンドは確認ダイアログ、`.env` 等の読み書きはファイル操作として拒否。Bash 経由の間接的な読み取りは防げない）が自動で効く。
 開発は [8 ステップ開発プロセス](process/8-step-development.md)で進める。
 個人用の許可設定は `.claude/settings.local.json`（gitignore 対象）に書く。
 

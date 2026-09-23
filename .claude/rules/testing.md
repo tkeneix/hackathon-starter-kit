@@ -3,6 +3,7 @@ paths:
   - "backend/**/*"
   - "frontend/**/*"
   - "tools/**/*"
+  - "analysis/**/*.py"
   - "**/tests/**/*"
   - "**/test_*.py"
   - "**/*.test.*"

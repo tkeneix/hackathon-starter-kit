@@ -7,7 +7,8 @@
 - [ ] 1 ファイル 1 責務を基本に、ディレクトリ構成を決めた
 - [ ] アーキテクチャ・テスト・レビュー・ログ・DB のルールが `.claude/rules/` にあり、`paths` が実際の構成と合っている
 - [ ] 単体・結合・E2E、lint、typecheck、build を 1 コマンドずつ実行でき、`CLAUDE.md` に書いてある
-- [ ] 秘密情報は自分で管理し、`.claude/settings.json` の deny で AI が `.env` 等を読めない
+- [ ] 秘密情報は自分で管理し、`.claude/settings.json` の deny で AI のファイル操作から `.env` 等を守っている
+      （Bash 経由の間接的な読み取りは防げないため、必要ならサンドボックスや PreToolUse フックを検討する）
 - [ ] main のブランチ保護と CI を設定した（`flow.sh protect --execute`）
 
 ## 2. タスクごと（8 ステップ）

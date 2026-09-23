@@ -201,15 +201,22 @@ cmd_check() {
 }
 
 cmd_pr() {
-    local title="" body="" draft=""
+    # 本文はファイルでも渡せる（--body-file）。差分やログから作った本文をシェル引数に埋め込むと
+    # $(...) やバッククォートが展開され得るため、AI エージェントはファイル経由で渡す（2026-09-23）。
+    local title="" body="" body_file="" draft=""
     while [ $# -gt 0 ]; do
         case "$1" in
-            -t|--title) [ $# -ge 2 ] || die "$1 に値がありません"; title=$2; shift 2 ;;
-            -b|--body)  [ $# -ge 2 ] || die "$1 に値がありません"; body=$2; shift 2 ;;
-            --draft)    draft=1; shift ;;
-            *)          die "不明なオプション: $1" ;;
+            -t|--title)     [ $# -ge 2 ] || die "$1 に値がありません"; title=$2; shift 2 ;;
+            -b|--body)      [ $# -ge 2 ] || die "$1 に値がありません"; body=$2; shift 2 ;;
+            -F|--body-file) [ $# -ge 2 ] || die "$1 に値がありません"; body_file=$2; shift 2 ;;
+            --draft)        draft=1; shift ;;
+            *)              die "不明なオプション: $1" ;;
         esac
     done
+    if [ -n "$body_file" ]; then
+        [ -z "$body" ] || die "-b と --body-file は同時に指定できません。"
+        [ -f "$body_file" ] || die "本文ファイルがありません: $body_file"
+    fi
 
     require_gh
 
@@ -254,7 +261,9 @@ cmd_pr() {
     else
         info "PR を作成: $branch -> $BASE_BRANCH"
         local -a args=(--base "$BASE_BRANCH" --head "$branch" --title "$title")
-        if [ -n "$body" ]; then
+        if [ -n "$body_file" ]; then
+            args+=(--body-file "$body_file")
+        elif [ -n "$body" ]; then
             args+=(--body "$body")
         elif [ -f "$(git rev-parse --show-toplevel)/.github/pull_request_template.md" ]; then
             args+=(--body-file "$(git rev-parse --show-toplevel)/.github/pull_request_template.md")
@@ -665,7 +674,7 @@ flow.sh — git ワークフロー CLI（GitHub 版）
                        --worktree なら .worktrees/<短い内容> に worktree として作成
   check [--only syntax,secret,envfile,largefile]
                        マージ前ゲート
-  pr [-t <title>] [-b <body>] [--draft]
+  pr [-t <title>] [-b <body> | --body-file <file>] [--draft]
                        ゲート -> push -> GitHub に PR 作成（同ブランチの open PR があれば再利用）
   merge <PR番号> --approved
                        PR をマージし、ローカル main を更新する。

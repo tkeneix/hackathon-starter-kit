@@ -140,7 +140,7 @@ flow.sh setup                                  初回セットアップ確認
 flow.sh init [--repo <o>/<r>] [--name <n>]     テンプレートから作成した直後の初期化（作成者が 1 回）
 flow.sh start <短い内容> [--worktree]           作業ブランチ（または worktree）作成
 flow.sh check [--only ...]                     マージ前ゲート
-flow.sh pr [-t <title>] [-b <body>] [--draft]  ゲート -> push -> PR 作成
+flow.sh pr [-t <title>] [-b <body> | --body-file <f>] [--draft]  ゲート -> push -> PR 作成
 flow.sh approve <PR番号> [-m <コメント>]       PR を承認（本人も可、コメント既定 LGTM）
 flow.sh merge <PR番号> [--approved]             PR マージ（ユーザー指示時のみ）+ ローカル main 更新
 flow.sh sync                                   ローカル main を origin に追従

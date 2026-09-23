@@ -13,6 +13,7 @@ PR 作成はこのリポジトリでは都度の許可不要（`CLAUDE.md`）。
 - `git diff origin/main...HEAD` で変更全体を確認する。
 - 対応するプラン（`docs/plans/`）、設計判断、Step 2・3・6 のレビュー記録、テスト結果を読む。
 - 実際の差分やコマンド出力で確認できない効果・検証結果は書かない。
+- 秘密情報・個人データ・生のログを本文に書かない（公開リポジトリになり得る）。必要なら伏せ字にし、構造だけを書く。
 
 ## 2. PR 本文を書く
 
@@ -26,7 +27,8 @@ PR 作成はこのリポジトリでは都度の許可不要（`CLAUDE.md`）。
 
 ## 3. 作成する
 
-- `tools/bin/flow.sh pr -t "<タイトル>" -b "<本文>"` を実行する（ゲート → push → PR 作成）。
+- 本文を `.review/pr-body.md`（gitignore 対象）に書き出し、`tools/bin/flow.sh pr -t "<タイトル>" --body-file .review/pr-body.md`
+  を実行する（ゲート → push → PR 作成）。本文をシェル引数に直接埋め込まない（`$(...)` 等が展開され得る）。
   `gh pr create` を直接使わない。
 - 作成した PR の URL と CI の結果（`gh pr checks <番号> --watch`）を報告する。
 - 承認（`flow.sh approve`）とマージ（`flow.sh merge`）は、ユーザーの指示があるまで実行しない。

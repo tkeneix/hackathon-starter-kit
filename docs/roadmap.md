@@ -13,7 +13,7 @@
 |---|---|---|---|
 | 0 | チーム開発の土台（PR フロー・テンプレート化・AI 駆動開発プロセス） | 完了 | flow.sh・ゲート・hooks・CI・CLAUDE.md・setup.md・`flow.sh init`・8 ステップ（rules / skills / agents） |
 | 1 | 開発環境の骨格 | 未着手 | compose.yaml・Makefile・.env.example・uv workspace |
-| 2 | データ分析 | 未着手 | notebooks/・data/ 規約・nbstripout・分析用依存 |
+| 2 | データ分析 | 未着手 | `analysis/`（notebook は `analysis/notebooks/`）・data/ 規約・nbstripout・分析用依存 |
 | 3 | 企画・資料・発表 | 未着手 | docs/ideas テンプレ・Marp スライド雛形 |
 | 4 | 仕様決め | 未着手 | 仕様書・ADR・Issue テンプレ |
 | 5 | アプリ開発 | 未着手 | backend（API + DB + LLM）・frontend・E2E |

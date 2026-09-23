@@ -2,7 +2,7 @@
 paths:
   - "backend/**/*"
   - "frontend/**/*"
-  - "analysis/**/*.py"
+  - "analysis/**/*"
   - "tools/**/*"
 ---
 

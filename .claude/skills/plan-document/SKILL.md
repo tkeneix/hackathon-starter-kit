@@ -26,4 +26,5 @@ description: 実装前に、質問で要件の曖昧さを除いてプランド�
   人間の承認を求める。
 - 承認されたらステータスを「人間承認済み」にし、Step 2（`design-reviewer`・`security-reviewer`・
   `operations-reviewer`・`business-reviewer`）→ Step 3（`test-coverage-reviewer`）へ進む。
-- レビュー指摘はプランの「レビュー記録」に残し、P0 が残る間は実装に入らない。
+- レビュー指摘はプランの「レビュー記録」に残し、P0 が残る間は実装に入らない。P0 が解消し、P1 の扱いが
+  決まったらステータスを「レビュー済み」にする（Step 4 に入れるのはこの状態から）。
